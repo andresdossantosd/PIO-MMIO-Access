@@ -1,4 +1,10 @@
-// obtiene fabricante y modelo dispo. PCI bus 0, slot 0 y función 0; http://wiki.osdev.org/PCI
+/*
+	****************  Nombre y Apellidos  *************************
+
+	             Andres Dos Santos De Andrade
+
+	****************  Nombre y Apellidos  *************************
+*/
 #include <sys/io.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -52,9 +58,11 @@ uint32_t construirNumero(ConfigDir *config) {
 typedef volatile struct tagHBA_MEM
 {
 	// 0x00 - 0x2B, Generic Host Control
-	uint32_t relleno[4];		// 0x00, Host capability
+	/***      parametros de relleno que no utilizamos      ***/
+	uint32_t relleno[4];		
+	/***      la version esta a partir de 0x10      ***/
 	uint16_t vs_minor;		// 0x10, Version
-	uint16_t vs_major;
+	uint16_t vs_major;		//
 } HBA_MEM;
 
 
@@ -75,7 +83,28 @@ void mmio_access_ahci(unsigned long int bar5){
 		perror("mmap"); 
 		return ; 
 	}
-	printf("           AHCI Versión %x.%x\n", dev_info->vs_major, dev_info->vs_minor /*>> 8*/);
+	/*
+		**********
+		**********
+		**********  En el struct tagHBA_MEM, antes teniamos un parametro uint32_t que recibia 00010100, por lo que asumimos que se referia a
+		**********  que el Major Version Number era 1, y el Minor Version Number 1, por lo que la version es 1.3.
+		**********
+		**********  Por esta razon, se dividio en dos uint16_t, para separar el major con minor version
+		**********
+		**********  Ademas, se anadieron parametros de relleno que no utilizabamos, pero con mmap al ajustar la variable BAR5 con 
+		**********  la direccion fisica, al agregarle el offset de 0x10 para acceder la version number directamente, daba erro y acceso erroneo
+		**********
+	*/
+
+	/*
+	    **********
+	    **********  31:16 RO 0001h Major Version Number (MJR): Indicates the major version is “1”
+	    **********  15:00 RO 0100h Minor Version Number (MNR): Indicates the minor version is “10”
+	    **********
+	*/
+	// Si recibo 0000h en el major y 0905h en el minor, si respeteare el caso de que imprima AHCI 0.95, ya que
+	// (dev_info->vs_minor & 0xFF) | ((dev_info->vs_minor & 0xF00) >> 4) lo que hace es que se queda en el minor con el 9 y con el 5.
+	printf("           AHCI Versión %x.%x\n", dev_info->vs_major, (dev_info->vs_minor & 0xFF) | ((dev_info->vs_minor & 0xF00) >> 4));
 }
 
 ConfigDir* init_check_device(uint8_t bus, uint8_t device){
@@ -150,7 +179,7 @@ void checkDevice(uint8_t bus, uint8_t device) {
 				switch (sub_clase) {
 					case 0x01:
 						res = "IDE";
-						printf("Controlador de almacenamiento %s: Bus %d Ranura %d Func %d: Vendedor %x Producto %x \n", res, bus, device, func_dev, vend, prod);
+						printf("Controlador de almacenamiento %s: Bus 0x%x Ranura 0x%x Func 0x%x: Vendedor %x Producto %x \n", res, bus, device, func_dev, vend, prod);
 					break;
 					case 0x06:
 						res = "AHCI";
@@ -162,11 +191,11 @@ void checkDevice(uint8_t bus, uint8_t device) {
 						outl (resultado, CONFIG_DIR); dat = inl(CONFIG_DAT); // extrae clase y subclase
 						// enviamos la direccion de 32 bits de BAR5
 						mmio_access_ahci(dat);
-						printf("Controlador de almacenamiento %s: Bus %d Ranura %d Func %d: Vendedor %x Producto %x \n", res, bus, device, func_dev, vend, prod);
+						printf("Controlador de almacenamiento %s: Bus 0x%x Ranura 0x%x Func 0x%x: Vendedor %x Producto %x \n", res, bus, device, func_dev, vend, prod);
 					break;
 					case 0x08:
 						res = "NVM";
-						printf("Controlador de almacenamiento %s: Bus %d Ranura %d Func %d: Vendedor %x Producto %x \n", res, bus, device, func_dev, vend, prod);
+						printf("Controlador de almacenamiento %s: Bus 0x%x Ranura 0x%x Func 0x%x: Vendedor %x Producto %x \n", res, bus, device, func_dev, vend, prod);
 					break;
 				}
 				
@@ -187,7 +216,7 @@ void checkDevice(uint8_t bus, uint8_t device) {
 			switch (sub_clase) {
 				case 0x01:
 					res = "IDE";
-					printf("Controlador de almacenamiento %s: Bus %d Ranura %d Func %d: Vendedor %x Producto %x \n", res, bus, device, 0, vend, prod);
+					printf("Controlador de almacenamiento %s: Bus 0x%x Ranura 0x%x Func 0x%x: Vendedor %x Producto %x \n", res, bus, device, 0, vend, prod);
 				break;
 				case 0x06:
 					res = "AHCI";
@@ -198,12 +227,12 @@ void checkDevice(uint8_t bus, uint8_t device) {
 					// Acceso a los puertos
 					outl (resultado, CONFIG_DIR); dat = inl(CONFIG_DAT); // extrae clase y subclase
 					// enviamos la direccion de 32 bits de BAR 5
-					printf("Controlador de almacenamiento %s: Bus %d Ranura %d Func %d: Vendedor %x Producto %x \n", res, bus, device, 0, vend, prod);
+					printf("Controlador de almacenamiento %s: Bus 0x%x Ranura 0x%x Func 0x%x: Vendedor %x Producto %x \n", res, bus, device, 0, vend, prod);
 					mmio_access_ahci(dat);
 				break;
 				case 0x08:
 					res = "NVMe";
-					printf("Controlador de almacenamiento %s: Bus %d Ranura %d Func %d: Vendedor %x Producto %x \n", res, bus, device, 0, vend, prod);
+					printf("Controlador de almacenamiento %s: Bus 0x%x Ranura 0x%x Func 0x%x: Vendedor %x Producto %x \n", res, bus, device, 0, vend, prod);
 				break;
 			}
 			
